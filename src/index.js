@@ -4,7 +4,7 @@ const xml2js = require("xml2js");
 const fs = require("fs");
 const path = require("path");
 
-const URL_GITBOOK = "https://docs.walken.io";
+const URL_GITBOOK = "https://octorate.gitbook.io/product-docs";
 
 // Function to fetch the sitemap XML and parse it
 async function fetchSitemap(url) {
@@ -14,9 +14,26 @@ async function fetchSitemap(url) {
 
     // Parse the XML sitemap into JSON
     const parsedSitemap = await xml2js.parseStringPromise(sitemapXML);
-    const urls = parsedSitemap.urlset.url;
 
-    return urls.map((url) => url.loc[0]); // Extract the 'loc' elements (URLs)
+    if (parsedSitemap.sitemapindex && parsedSitemap.sitemapindex.sitemap) {
+      let allUrls = [];
+      const sitemaps = parsedSitemap.sitemapindex.sitemap;
+      for (const sitemap of sitemaps) {
+        const subSitemapUrl = sitemap.loc[0];
+        const subUrls = await fetchSitemap(subSitemapUrl);
+        if (subUrls) {
+          allUrls = allUrls.concat(subUrls);
+        }
+      }
+      return allUrls;
+    }
+
+    if (parsedSitemap.urlset && parsedSitemap.urlset.url) {
+      const urls = parsedSitemap.urlset.url;
+      return urls.map((url) => url.loc[0]); // Extract the 'loc' elements (URLs)
+    }
+
+    return [];
   } catch (error) {
     console.error("Error fetching or parsing sitemap:", error);
   }
